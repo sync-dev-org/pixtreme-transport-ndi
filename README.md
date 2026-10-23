@@ -4,7 +4,7 @@ Full NDI® video and audio output for [pixtreme.transport](https://github.com/sy
 NDI® is a registered trademark of Vizrt NDI AB. See [NDI](https://ndi.video/).
 
 Send processed GPU frames from a transport core `FrameBuffer` to NDI receivers.
-The package provides the Python `Output` class, a C++ shared library, public
+The package provides the Python `Output` factory, a C++ shared library, public
 headers, a CMake package, and a bundled libndi runtime. It provides output only.
 
 ## Installation
@@ -25,7 +25,7 @@ must be installed on the host. Install `libavahi-client3` on Debian/Ubuntu or
 `avahi-daemon`. Import errors identify a missing Avahi library and the packages
 to install.
 
-The dependency `pixtreme-transport>=0.16.9` installs the transport core, which
+The dependency `pixtreme-transport>=0.17.1` installs the transport core, which
 supplies frame types, buffers, worker threads, audio processing, and pixel
 serialization. Its native ABI must match the ABI used to build this module;
 import rejects an incompatible core before loading the NDI extension. The core
@@ -63,10 +63,13 @@ finally:
 ```
 
 `Output(device, buffer, settings, name)` requires all four arguments. Device
-numbers follow the core's CUDA device selection. `Output` inherits the core's
-`Exit`, including `open`, `request_stop`, `join`, `close`, `check`, and
+numbers follow the core's CUDA device selection. `Output` returns the core's
+`Exit`, with `open`, `request_stop`, `join`, `close`, `check`, and
 `inspection`. `open()` creates the NDI source; video begins after the first
 frame is acquired. The output never closes the caller's buffer.
+`Output` is a factory function;
+use `isinstance(output, Exit)` to check the returned session, with `Exit` imported
+from `pixtreme.transport.session`.
 
 `ExitSettings.prefill_frames` defaults to 2. Set it to 1 to start with one
 buffered frame. The value must be positive and fit the buffer's capacity.
@@ -137,7 +140,10 @@ Set `pixtreme-transport-ndi_DIR` to that directory and `pixtreme_transport_DIR`
 to the core's CMake directory, call
 `find_package(pixtreme-transport-ndi CONFIG REQUIRED)`, and link `pixtreme::ndi`.
 Include `<pixtreme/transport/ndi/output.hpp>` to use `Output`. Public headers
-require the core SDK and do not require NDI SDK headers.
+require the core SDK and do not require NDI SDK headers. The C session owns the
+NDI sender; the C++ `Output` is a view of that session. Close the session explicitly
+or release its last owning handle to stop it. Overriding the C++ view's processing
+hooks to replace NDI sending is not supported.
 
 ## License
 
