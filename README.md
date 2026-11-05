@@ -78,29 +78,6 @@ While an open buffer has no new frame, the output repeats the latest picture
 with silent audio. `request_stop()` stops acquisition and drains accepted work;
 `close()` joins the workers and destroys the source.
 
-To record output stage times, pass an optional bounded log when constructing the
-output:
-
-```python
-from pixtreme.transport.ndi import TimingLog
-
-timing = TimingLog(capacity=4096)
-output = Output(0, post, settings, "Processed output", timing=timing)
-# After sending, or periodically from the caller:
-records = timing.take()
-```
-
-`take()` returns dictionaries in send order and empties the log. Each dictionary
-contains `prepared_ns` (entry to serialization preparation), `encoded_ns` (receipt
-of the serialized picture), and `send_begin_ns` / `send_end_ns` (immediately before
-and after the SDK video send). All four are nanoseconds on Linux's
-`CLOCK_MONOTONIC`, the same clock as Python's `time.monotonic_ns()`.
-`input_number`, `epoch`, and `sequence` identify the picture; `period_index`
-identifies the output period, and `repeated` marks a repeated picture. Repeats
-have their own stage times. Capacity must be positive. When full, the log drops
-new records and increments the cumulative `dropped` count while sending
-continues. Omitting `timing` (or passing `None`) disables these clock reads.
-
 ## Video, audio, and timecode
 
 The NDI SDK video clock controls the sending interval. The output uses
