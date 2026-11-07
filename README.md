@@ -25,7 +25,7 @@ must be installed on the host. Install `libavahi-client3` on Debian/Ubuntu or
 `avahi-daemon`. Import errors identify a missing Avahi library and the packages
 to install.
 
-The dependency `pixtreme-transport>=0.20.0` installs the transport core, which
+The dependency `pixtreme-transport>=0.21.0` installs the transport core, which
 supplies frame types, buffers, worker threads, audio processing, and pixel
 serialization. Its native ABI must match the ABI used to build this module;
 import rejects an incompatible core before loading the NDI extension. The core
