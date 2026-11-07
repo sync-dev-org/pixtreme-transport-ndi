@@ -25,7 +25,7 @@ must be installed on the host. Install `libavahi-client3` on Debian/Ubuntu or
 `avahi-daemon`. Import errors identify a missing Avahi library and the packages
 to install.
 
-The dependency `pixtreme-transport>=0.22.0` installs the transport core, which
+The dependency `pixtreme-transport>=0.23.0` installs the transport core, which
 supplies frame types, buffers, worker threads, audio processing, and pixel
 serialization. Its native ABI must match the ABI used to build this module;
 import rejects an incompatible core before loading the NDI extension. The core
@@ -74,8 +74,16 @@ from `pixtreme.transport.session`.
 `ExitSettings.prefill_frames` defaults to 2. Set it to 1 to start with one
 buffered frame. The value must be positive and fit the buffer's capacity.
 Closing the buffer drains its remaining frames even below that count.
+
+On each output period, the core's sending thread takes one picture from the
+buffer, serializes it into the module's host memory, and passes it to the SDK.
+There is no queue of encoded pictures before sending. The core requires a
+positive `ExitSettings.encoded_depth` and preserves it in the settings returned
+for inspection, but NDI output does not use it to drive sending.
+
 While an open buffer has no new frame, the output repeats the latest picture
-with silent audio. `request_stop()` stops acquisition and drains accepted work;
+with silent audio. `request_stop()` stops acquisition and sends only pictures
+already accepted by the core; pictures left in the buffer are not sent.
 `close()` joins the workers and destroys the source.
 
 ## Video, audio, and timecode
