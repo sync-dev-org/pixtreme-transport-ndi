@@ -88,8 +88,10 @@ already accepted by the core; pictures left in the buffer are not sent.
 
 ## Video, audio, and timecode
 
-The NDI SDK video clock controls the sending interval. The output uses
-`Pacing.SDK_CLOCK` with `clock_video` enabled and `clock_audio` disabled.
+The core's sending thread measures each frame period on a monotonic clock and
+controls the sending interval. The output uses `Pacing.CORE_CLOCK` with
+`clock_video` and `clock_audio` disabled, so the SDK sends each picture as soon
+as it receives it.
 Resolution follows each input image, and frame rate follows
 `ExitSettings.frame_period`. Image widths must be divisible by two.
 
