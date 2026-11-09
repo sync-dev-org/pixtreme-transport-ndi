@@ -25,7 +25,7 @@ must be installed on the host. Install `libavahi-client3` on Debian/Ubuntu or
 `avahi-daemon`. Import errors identify a missing Avahi library and the packages
 to install.
 
-The dependency `pixtreme-transport>=0.23.2` installs the transport core, which
+The dependency `pixtreme-transport>=0.24.0` installs the transport core, which
 supplies frame types, buffers, worker threads, audio processing, and pixel
 serialization. Its native ABI must match the ABI used to build this module;
 import rejects an incompatible core before loading the NDI extension. The core
@@ -146,8 +146,9 @@ collections produce no metadata. Repeats omit the original ancillary metadata.
 ## C++ integration
 
 The wheel installs its CMake package under `pixtreme/transport/ndi/cmake`.
-Set `pixtreme-transport-ndi_DIR` to that directory and `pixtreme_transport_DIR`
-to the core's CMake directory, call
+Set `pixtreme-transport-ndi_DIR` to that directory, `pixtreme_transport_DIR`
+to the core's CMake directory, and `pixtreme_DIR` to pixtreme's CMake directory
+(`pixtreme.core.get_cmake_dir()`), call
 `find_package(pixtreme-transport-ndi CONFIG REQUIRED)`, and link `pixtreme::ndi`.
 Include `<pixtreme/transport/ndi/output.hpp>` to use `Output`. Public headers
 require the core SDK and do not require NDI SDK headers. The C session owns the
