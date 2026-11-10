@@ -27,7 +27,10 @@ to install.
 
 The dependency `pixtreme-transport>=0.26.0` installs the transport core, which
 supplies frame types, buffers, worker threads, audio processing, and pixel
-serialization. Its native ABI must match the ABI used to build this module;
+serialization. This module directly depends on `pixtreme>=2.13.0` and uses
+pixtreme's color definitions to match the primaries and white point of YCbCr
+images to the NDI standard for their resolution. The core's native ABI must
+match the ABI used to build this module;
 import rejects an incompatible core before loading the NDI extension. The core
 library stays in its own wheel. This package installs libndi under its own
 `_ndi` directory and uses relative library paths, so `LD_LIBRARY_PATH` is not
