@@ -25,9 +25,9 @@ must be installed on the host. Install `libavahi-client3` on Debian/Ubuntu or
 `avahi-daemon`. Import errors identify a missing Avahi library and the packages
 to install.
 
-The dependency `pixtreme-transport>=0.27.0` installs the transport core, which
+The dependency `pixtreme-transport>=0.28.0` installs the transport core, which
 supplies frame types, buffers, worker threads, audio processing, and pixel
-serialization. This module directly depends on `pixtreme>=2.13.0` and uses
+serialization. This module directly depends on `pixtreme>=2.14.0` and uses
 pixtreme's color definitions to match the primaries and white point of YCbCr
 images to the NDI standard for their resolution. The core's native ABI must
 match the ABI used to build this module;
@@ -158,6 +158,15 @@ require the core SDK and do not require NDI SDK headers. The C session owns the
 NDI sender; the C++ `Output` is a view of that session. Close the session explicitly
 or release its last owning handle to stop it. Overriding the C++ view's processing
 hooks to replace NDI sending is not supported.
+
+## Building from source
+
+Source builds use Conan 2 for CUDA headers, Catch2, and a local description of
+the licensed NDI SDK. Install the pinned CLI with `uv tool install conan==2.34.0`,
+set `NDI_SDK_ROOT`, and prepare test dependencies with
+`cmake -P cpp/conan/prepare-tests.cmake`. Development builds do not need an OS
+CUDA Toolkit. See [DEVELOPMENT.md](DEVELOPMENT.md) for editable builds,
+standalone C++ tests, and manylinux wheels.
 
 ## License
 
