@@ -15,8 +15,8 @@ pip install pixtreme-transport-ndi
 
 Supported wheels target Linux x86_64 (including WSL2), CPython 3.12 and 3.13,
 and `manylinux_2_28_x86_64` (glibc 2.28 or newer). Processing requires an NVIDIA
-GPU and a driver that supports CUDA 13. The transport core supplies CUDA kernels
-for sm 86, sm 89, and sm 120. The wheel requires no CUDA Toolkit or NDI SDK
+GPU and a driver that supports CUDA 13. Pixel serialization calls pixtreme's
+conversions, built for sm 86, sm 89, and sm 120. The wheel requires no CUDA Toolkit or NDI SDK
 installation.
 
 Avahi's `libavahi-client.so.3`, `libavahi-common.so.3`, and their dependencies
@@ -25,7 +25,7 @@ must be installed on the host. Install `libavahi-client3` on Debian/Ubuntu or
 `avahi-daemon`. Import errors identify a missing Avahi library and the packages
 to install.
 
-The dependency `pixtreme-transport>=0.29.1` installs the transport core, which
+The dependency `pixtreme-transport>=0.29.2` installs the transport core, which
 supplies frame types, buffers, worker threads, audio processing, and pixel
 serialization. This module directly depends on `pixtreme>=2.14.0` and uses
 pixtreme's color definitions to match the primaries and white point of YCbCr
@@ -158,6 +158,50 @@ require the core SDK and do not require NDI SDK headers. The C session owns the
 NDI sender; the C++ `Output` is a view of that session. Close the session explicitly
 or release its last owning handle to stop it. Overriding the C++ view's processing
 hooks to replace NDI sending is not supported.
+
+To select the output by name, link only `pixtreme::transport` and include
+`<pixtreme/transport/module.h>`. The core finds the installed NDI wheel without
+importing Python or linking the NDI C++ library:
+
+```cpp
+// post is a caller-owned session::FrameBuffer. Build core settings via its C API.
+namespace pt = pixtreme::transport;
+pixtreme_transport_exit_settings_options values{};
+values.struct_size = sizeof(values);
+values.period_numerator = 1;
+values.period_denominator = 25;
+values.encoded_depth = 1;
+values.prefill_frames = 1;
+pixtreme_transport_exit_settings* raw_settings = nullptr;
+pixtreme_transport_error* error = nullptr;
+auto status = pixtreme_transport_exit_settings_create(&values, &raw_settings, &error);
+pt::check_status(status, error);
+auto settings = pt::Handle::adopt(raw_settings);
+const pixtreme_transport_module_exit_request request{
+    sizeof(request), 0, post.native_handle(), settings.get()};
+const pixtreme_transport_module_option options[]{
+    {sizeof(pixtreme_transport_module_option), {"name", 4}, {"Processed output", 16}}};
+auto output = pt::module::create_exit("ndi", request, options);
+// output owns one unopened core exit reference. Use the core C session API.
+status = pixtreme_transport_exit_open(output.get(), &error);
+pt::check_status(status, error);
+// Feed post, then close the session before releasing output.
+```
+
+The C equivalent is `pixtreme_transport_module_create_exit` from
+`<pixtreme/transport/c/module.h>`. Supply the module name `ndi`, the request,
+and the options array with its count and byte stride. A successful result owns
+one unopened exit reference; close it and release it with the core handle API.
+`name` is the only NDI option and is required exactly once. Its value is the
+source name as UTF-8 bytes without NUL. Unknown, duplicate, missing and invalid
+options report the key path without including the value. Device, buffer and
+core settings belong in the request. Each creation returns an independent
+session and preserves the caller's current CUDA device and context.
+
+The wheel places `libpixtreme_transport_ndi_entry.so` under
+`pixtreme/transport/ndi/lib/`. Discovery returns CPU metadata; creation loads the
+same output library used by Python and reports missing Avahi libraries with
+the system packages to install. NDI reception remains unsupported.
 
 ## Building from source
 
