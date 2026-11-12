@@ -25,9 +25,9 @@ must be installed on the host. Install `libavahi-client3` on Debian/Ubuntu or
 `avahi-daemon`. Import errors identify a missing Avahi library and the packages
 to install.
 
-The dependency `pixtreme-transport>=0.29.2` installs the transport core, which
+The dependency `pixtreme-transport>=0.30.1` installs the transport core, which
 supplies frame types, buffers, worker threads, audio processing, and pixel
-serialization. This module directly depends on `pixtreme>=2.14.0` and uses
+serialization. This module directly depends on `pixtreme>=2.17.0` and uses
 pixtreme's color definitions to match the primaries and white point of YCbCr
 images to the NDI standard for their resolution. The core's native ABI must
 match the ABI used to build this module;
@@ -149,9 +149,10 @@ collections produce no metadata. Repeats omit the original ancillary metadata.
 ## C++ integration
 
 The wheel installs its CMake package under `pixtreme/transport/ndi/cmake`.
-Set `pixtreme-transport-ndi_DIR` to that directory, `pixtreme_transport_DIR`
-to the core's CMake directory, and `pixtreme_DIR` to pixtreme's CMake directory
-(`pixtreme.core.get_cmake_dir()`), call
+Obtain the core and pixtreme prebuilt SDKs through the
+[core's public Release recipes](https://github.com/sync-dev-org/pixtreme-transport#build-a-c-or-c-module)
+and retain their Conan lock. Configure with that Conan toolchain, set
+`pixtreme-transport-ndi_DIR` to the module's installed CMake directory, call
 `find_package(pixtreme-transport-ndi CONFIG REQUIRED)`, and link `pixtreme::ndi`.
 Include `<pixtreme/transport/ndi/output.hpp>` to use `Output`. Public headers
 require the core SDK and do not require NDI SDK headers. The C session owns the
@@ -205,11 +206,14 @@ the system packages to install. NDI reception remains unsupported.
 
 ## Building from source
 
-Source builds use Conan 2 for CUDA headers, Catch2, and a local description of
-the licensed NDI SDK. Install the pinned CLI with `uv tool install conan==2.34.0`,
+Source builds use Conan 2 for the prebuilt core and pixtreme SDKs, the shared CUDA
+toolkit recipe, Catch2, and a local description of the licensed NDI SDK. Public
+Release recipe archives are verified against `SHA256SUMS`, and exported recipe
+revisions must match `cpp/conan.lock`. Core and pixtreme are not compiled.
+Install the pinned CLI with `uv tool install conan==2.34.0`,
 set `NDI_SDK_ROOT`, and prepare test dependencies with
 `cmake -P cpp/conan/prepare-tests.cmake`. Development builds do not need an OS
-CUDA Toolkit. See [DEVELOPMENT.md](DEVELOPMENT.md) for editable builds,
+CUDA Toolkit. See [DEVELOPMENT.md](DEVELOPMENT.md) for Python builds,
 standalone C++ tests, and manylinux wheels.
 
 ## License
