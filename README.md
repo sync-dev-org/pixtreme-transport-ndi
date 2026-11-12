@@ -25,9 +25,9 @@ must be installed on the host. Install `libavahi-client3` on Debian/Ubuntu or
 `avahi-daemon`. Import errors identify a missing Avahi library and the packages
 to install.
 
-The dependency `pixtreme-transport>=0.30.1` installs the transport core, which
+The dependency `pixtreme-transport>=0.31.0` installs the transport core, which
 supplies frame types, buffers, worker threads, audio processing, and pixel
-serialization. This module directly depends on `pixtreme>=2.17.0` and uses
+serialization. This module directly depends on `pixtreme>=2.19.0` and uses
 pixtreme's color definitions to match the primaries and white point of YCbCr
 images to the NDI standard for their resolution. The core's native ABI must
 match the ABI used to build this module;
@@ -149,9 +149,9 @@ collections produce no metadata. Repeats omit the original ancillary metadata.
 ## C++ integration
 
 The wheel installs its CMake package under `pixtreme/transport/ndi/cmake`.
-Obtain the core and pixtreme prebuilt SDKs through the
-[core's public Release recipes](https://github.com/sync-dev-org/pixtreme-transport#build-a-c-or-c-module)
-and retain their Conan lock. Configure with that Conan toolchain, set
+Use your organization's shared Conan recipes to obtain the core 0.31.0 and
+pixtreme 2.19.0 prebuilt SDKs and retain their Conan lock. The module's native SDK
+archive is available alongside wheels in the public GitHub Release. Configure with that Conan toolchain, set
 `pixtreme-transport-ndi_DIR` to the module's installed CMake directory, call
 `find_package(pixtreme-transport-ndi CONFIG REQUIRED)`, and link `pixtreme::ndi`.
 Include `<pixtreme/transport/ndi/output.hpp>` to use `Output`. Public headers
