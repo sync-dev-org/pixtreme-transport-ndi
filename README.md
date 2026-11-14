@@ -25,9 +25,9 @@ must be installed on the host. Install `libavahi-client3` on Debian/Ubuntu or
 `avahi-daemon`. Import errors identify a missing Avahi library and the packages
 to install.
 
-The dependency `pixtreme-transport>=0.32.2` installs the transport core, which
+The dependency `pixtreme-transport>=0.33.1` installs the transport core, which
 supplies frame types, buffers, worker threads, audio processing, and pixel
-serialization. This module directly depends on `pixtreme>=2.22.2` and uses
+serialization. This module directly depends on `pixtreme>=2.24.0` and uses
 pixtreme's color definitions to match the primaries and white point of YCbCr
 images to the NDI standard for their resolution. The core's native ABI must
 match the ABI used to build this module;
@@ -146,11 +146,24 @@ becomes one `item`; its kind and payload use standard padded base64. Order,
 duplicate kinds, opaque bytes, and empty payloads are preserved. Empty
 collections produce no metadata. Repeats omit the original ancillary metadata.
 
+## Send timing trace
+
+Before `open()`, call the core session's `output.set_trace(trace)` with a
+`pixtreme.trace.Trace` containing eight integer values per record. NDI records
+kind 1001 immediately before the synchronous SDK video send, after audio has
+been rearranged, and 1002 when that send returns. Kinds 1003 and 1004 surround
+the SDK audio send and are omitted when audio is disabled. These rows join the
+core's send rows (13 and 14) by session ID and work ID, with the core's input
+number, epoch, sequence, ticket, and repeat flag. Reading and exporting the
+trace belongs to the caller after the session has stopped. Without a trace,
+the module makes no measurement clock or recording calls; SDK inputs and the
+core's send cadence are unchanged.
+
 ## C++ integration
 
 The wheel installs its CMake package under `pixtreme/transport/ndi/cmake`.
-Use your organization's shared Conan recipes to obtain the core 0.32.2 and
-pixtreme 2.22.2 prebuilt SDKs and retain their Conan lock. The module's native SDK
+Use your organization's shared Conan recipes to obtain the core 0.33.1 and
+pixtreme 2.24.0 prebuilt SDKs and retain their Conan lock. The module's native SDK
 archive is available alongside wheels in the public GitHub Release. Configure with that Conan toolchain, set
 `pixtreme-transport-ndi_DIR` to the module's installed CMake directory, call
 `find_package(pixtreme-transport-ndi CONFIG REQUIRED)`, and link `pixtreme::ndi`.
