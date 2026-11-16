@@ -34,7 +34,7 @@ before importing the native binding; pixtreme and the core register their own
 DLL directories. Their DLLs, CUDA runtime, NVIDIA driver and C runtime DLLs stay
 outside this wheel. Use Linux wheels inside WSL2.
 
-The dependency `pixtreme-transport>=0.35.1` installs the transport core, which
+The dependency `pixtreme-transport>=0.36.0` installs the transport core, which
 supplies frame types, buffers, worker threads, audio processing, and pixel
 serialization. This module directly depends on `pixtreme>=2.25.3` and uses
 pixtreme's color definitions to match the primaries and white point of YCbCr
@@ -133,6 +133,17 @@ planar float layout without changing sample values or counts. The core handles
 dropped frames, repeats, padding, and trimming. At 48 kHz and 30000/1001 fps,
 five periods contain 8008 samples per channel. Disabled audio is not sent.
 
+With core 0.36.0 or later, a frame can carry an `AudioReference` into the core's
+`PcmStore`. The core resolves that range immediately before sending, so PCM
+arriving while the picture is prepared can still reach the output. Set
+`settings.audio.max_audio_wait_ms` to limit the wait for missing PCM; `None`
+uses one nominal frame period and `0` does not wait. The budget starts when the
+core selects the picture and includes preparation and pacing. Repeated pictures
+and pictures without audio send nominal silence without waiting. The output's
+`inspection.audio_filled_samples` counts unread source samples sent as silence;
+`audio_added_samples` and `audio_trimmed_samples` count output sample adjustments
+separately. NDI preserves the PCM that the core supplies.
+
 An input `FrameTiming.source_timecode` is converted to the NDI video frame's
 100 ns timecode units. Its displayed hours, minutes, seconds, and nominal-rate
 frame fraction are preserved, including for drop-frame labels. Fractional ticks
@@ -171,7 +182,7 @@ core's send cadence are unchanged.
 ## C++ integration
 
 The wheel installs its CMake package under `pixtreme/transport/ndi/cmake`.
-Use your organization's shared Conan recipes to obtain the core 0.35.1 and
+Use your organization's shared Conan recipes to obtain the core 0.36.0 and
 pixtreme 2.25.3 prebuilt SDKs and retain their Conan lock. The module's native SDK
 archive is available alongside wheels in the public GitHub Release. Configure with that Conan toolchain, set
 `pixtreme-transport-ndi_DIR` to the module's installed CMake directory, call
@@ -227,7 +238,8 @@ same output library used by Python and reports missing Avahi libraries with
 the system packages to install. NDI reception remains unsupported.
 
 On Windows the entry is `pixtreme/transport/ndi/bin/pixtreme_transport_ndi_entry.dll`.
-The body is `bin/pixtreme_ndi-9.dll` for core ABI 9; its import library is
+The body is `bin/pixtreme_ndi-<core ABI>.dll`, using the ABI of the core SDK
+selected at build time; its import library is
 `lib/pixtreme_ndi.lib`. The core and module must share one installation tree.
 Native applications choose their own DLL search directories and load each
 pixtreme and core DLL once. Link through `pixtreme::ndi` when using C++ `Output`.
