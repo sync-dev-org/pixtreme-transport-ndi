@@ -13,17 +13,26 @@ headers, a CMake package, and a bundled libndi runtime. It provides output only.
 pip install pixtreme-transport-ndi
 ```
 
-Supported wheels target Linux x86_64 (including WSL2), CPython 3.12 and 3.13,
-and `manylinux_2_28_x86_64` (glibc 2.28 or newer). Processing requires an NVIDIA
+Supported wheels target Linux x86_64 (including WSL2) and native Windows x86_64,
+with CPython 3.12 and 3.13. Linux wheels use `manylinux_2_28_x86_64` (glibc 2.28
+or newer); Windows wheels use `win_amd64`. Processing requires an NVIDIA
 GPU and a driver that supports CUDA 13. Pixel serialization calls pixtreme's
 conversions, built for sm 86, sm 89, and sm 120. The wheel requires no CUDA Toolkit or NDI SDK
 installation.
 
-Avahi's `libavahi-client.so.3`, `libavahi-common.so.3`, and their dependencies
+On Linux, Avahi's `libavahi-client.so.3`, `libavahi-common.so.3`, and their dependencies
 must be installed on the host. Install `libavahi-client3` on Debian/Ubuntu or
 `avahi-libs` on RHEL-family systems. NDI mDNS discovery also needs a running
 `avahi-daemon`. Import errors identify a missing Avahi library and the packages
 to install.
+
+Windows requires Microsoft Visual C++ v14 Redistributable x64 for MSVC toolset
+14.44 or later. The wheel bundles `Processing.NDI.Lib.x64.dll` and its
+`Processing.NDI.Lib.Licenses.txt` notice under the package's `_ndi/` directory.
+The package registers its own `bin/` and `_ndi/` with `os.add_dll_directory`
+before importing the native binding; pixtreme and the core register their own
+DLL directories. Their DLLs, CUDA runtime, NVIDIA driver and C runtime DLLs stay
+outside this wheel. Use Linux wheels inside WSL2.
 
 The dependency `pixtreme-transport>=0.35.1` installs the transport core, which
 supplies frame types, buffers, worker threads, audio processing, and pixel
@@ -33,7 +42,7 @@ images to the NDI standard for their resolution. The core's native ABI must
 match the ABI used to build this module;
 import rejects an incompatible core before loading the NDI extension. The core
 library stays in its own wheel. This package installs libndi under its own
-`_ndi` directory and uses relative library paths, so `LD_LIBRARY_PATH` is not
+`_ndi` directory and uses relative library paths on Linux, so `LD_LIBRARY_PATH` is not
 needed to locate the installed NDI and core libraries.
 
 ## Using the output
@@ -217,6 +226,12 @@ The wheel places `libpixtreme_transport_ndi_entry.so` under
 same output library used by Python and reports missing Avahi libraries with
 the system packages to install. NDI reception remains unsupported.
 
+On Windows the entry is `pixtreme/transport/ndi/bin/pixtreme_transport_ndi_entry.dll`.
+The body is `bin/pixtreme_ndi-9.dll` for core ABI 9; its import library is
+`lib/pixtreme_ndi.lib`. The core and module must share one installation tree.
+Native applications choose their own DLL search directories and load each
+pixtreme and core DLL once. Link through `pixtreme::ndi` when using C++ `Output`.
+
 ## Building from source
 
 Source builds use Conan 2 for the prebuilt core and pixtreme SDKs, the shared CUDA
@@ -237,7 +252,7 @@ This module's code is distributed under the
 [MIT license](https://github.com/sync-dev-org/pixtreme-transport-ndi/blob/main/LICENSE).
 
 The bundled libndi is subject to the NDI SDK License Agreement and the notices
-in `libndi_licenses.txt`.
+in `libndi_licenses.txt` on Linux or `Processing.NDI.Lib.Licenses.txt` on Windows.
 The wheel includes the complete nanobind and robin_map license texts and a
 libndi notice in its `.dist-info/licenses/` directory.
 
