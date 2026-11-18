@@ -34,7 +34,7 @@ before importing the native binding; pixtreme and the core register their own
 DLL directories. Their DLLs, CUDA runtime, NVIDIA driver and C runtime DLLs stay
 outside this wheel. Use Linux wheels inside WSL2.
 
-The dependency `pixtreme-transport>=0.37.0` installs the transport core, which
+The dependency `pixtreme-transport>=0.38.0` installs the transport core, which
 supplies frame types, buffers, worker threads, audio processing, and pixel
 serialization. This module directly depends on `pixtreme>=2.25.3` and uses
 pixtreme's color definitions to match the primaries and white point of YCbCr
@@ -89,9 +89,7 @@ Closing the buffer drains its remaining frames even below that count.
 
 On each output period, the core's sending thread takes one picture from the
 buffer, serializes it into the module's host memory, and passes it to the SDK.
-There is no queue of encoded pictures before sending. The core requires a
-positive `ExitSettings.encoded_depth` and preserves it in the settings returned
-for inspection, but NDI output does not use it to drive sending.
+There is no queue of encoded pictures before sending.
 
 While an open buffer has no new frame, the output repeats the latest picture
 with silent audio. `request_stop()` stops acquisition and sends only pictures
@@ -182,7 +180,7 @@ core's send cadence are unchanged.
 ## C++ integration
 
 The wheel installs its CMake package under `pixtreme/transport/ndi/cmake`.
-Use your organization's shared Conan recipes to obtain the core 0.37.0 and
+Use your organization's shared Conan recipes to obtain the core 0.38.0 and
 pixtreme 2.25.3 prebuilt SDKs and retain their Conan lock. The module's native SDK
 archive is available alongside wheels in the public GitHub Release. Configure with that Conan toolchain, set
 `pixtreme-transport-ndi_DIR` to the module's installed CMake directory, call
@@ -204,7 +202,6 @@ pixtreme_transport_exit_settings_options values{};
 values.struct_size = sizeof(values);
 values.period_numerator = 1;
 values.period_denominator = 25;
-values.encoded_depth = 1;
 values.prefill_frames = 1;
 pixtreme_transport_exit_settings* raw_settings = nullptr;
 pixtreme_transport_error* error = nullptr;
