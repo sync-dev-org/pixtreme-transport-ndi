@@ -1,11 +1,12 @@
 # pixtreme-transport-ndi
 
-Full NDI® video and audio output for [pixtreme.transport](https://github.com/sync-dev-org/pixtreme-transport).
+NDI® video and audio input and output for [pixtreme.transport](https://github.com/sync-dev-org/pixtreme-transport).
 NDI® is a registered trademark of Vizrt NDI AB. See [NDI](https://ndi.video/).
 
-Send processed GPU frames from a transport core `FrameBuffer` to NDI receivers.
-The package provides the Python `Output` factory, a C++ shared library, public
-headers, a CMake package, and a bundled libndi runtime. It provides output only.
+Receive NDI sources into GPU frames and send processed frames from a transport
+core `FrameBuffer` to NDI receivers. The package provides Python `Input` and
+`Output` factories, a C++ shared library, public headers, a CMake package, and
+a bundled libndi runtime.
 
 ## Installation
 
@@ -34,7 +35,7 @@ before importing the native binding; pixtreme and the core register their own
 DLL directories. Their DLLs, CUDA runtime, NVIDIA driver and C runtime DLLs stay
 outside this wheel. Use Linux wheels inside WSL2.
 
-The dependency `pixtreme-transport>=0.40.3` installs the transport core, which
+The dependency `pixtreme-transport>=0.41.0` installs the transport core, which
 supplies frame types, buffers, worker threads, audio processing, and pixel
 serialization. This module directly depends on `pixtreme>=2.25.3` and uses
 pixtreme's color definitions to match the primaries and white point of YCbCr
@@ -44,6 +45,96 @@ import rejects an incompatible core before loading the NDI extension. The core
 library stays in its own wheel. This package installs libndi under its own
 `_ndi` directory and uses relative library paths on Linux, so `LD_LIBRARY_PATH` is not
 needed to locate the installed NDI and core libraries.
+
+## Using the input
+
+```python
+from pixtreme.transport.ndi import Input
+from pixtreme.transport.session import FrameBuffer
+
+pre = FrameBuffer(8)
+source = Input(0, pre, "STUDIO (Camera)", delay_ms=0)
+source.open()
+try:
+    while (item := source.next()) is not None:
+        # Check before selecting a model that needs motion vectors or residuals.
+        assert item.snapshot.info.side_data_status == "unavailable"
+        process(item.frame, item.snapshot)  # Your pipeline receives TransportFrame values.
+finally:
+    source.close()
+```
+
+`Input(device, buffer, name, delay_ms=0)` returns the core's `Entrance`. Use the
+source's NDI name, including its host component as advertised by NDI discovery.
+The caller owns the pre buffer and chooses its capacity and overflow behaviour.
+`open()` creates the receiver, applies its receive delay, and returns without
+waiting for the sender. `snapshot` remains `None` until the first successful
+`next()`, which returns the first picture with its capture number and actual
+frame period. `request_stop()` interrupts reception even before a sender appears.
+`close()` joins reception and destroys the receiver; the caller's buffer and
+already returned frames retain their contents.
+
+The native receive thread captures each SDK picture once, in arrival order.
+It does not use frame sync, repeat pictures, or discard pictures to match a
+receiver clock. Each frame has a consecutive capture number and a
+`received_at_ns` observed once when the SDK returns that picture, before image
+conversion. The frame period and image description follow source changes.
+Observed SDK video loss produces a source `unknown` discontinuity; missing
+source positions are not guessed. Caller-buffer overflow remains visible
+through the core's drop records.
+
+`delay_ms` is an optional nonnegative integer in the SDK `int` range
+(0 through 2147483647). The same value is passed to the SDK video and audio
+receive delays. Positive values smooth network arrival by waiting inside the
+SDK before capture returns. That wait precedes `received_at_ns` and is separate
+from an output's delay budget. The default is 0.
+
+Decoded pictures are converted using pixtreme's public operations. Received
+UYVY is legal-range YCbCr: BT.601 at up to 720x576, BT.709 above that through
+1920x1080, and BT.2020 when either dimension exceeds 1920x1080. HD and UHD use
+Rec.709 and Rec.2020 colorspaces respectively; unspecified colour axes use
+the module's explicit Rec.709 gamma and left chroma siting. SD primaries default
+to Rec.709. Received RGB has no YCbCr matrix, uses Rec.709 colorspace and gamma
+when unspecified, and RGBA retains its alpha. The receiver requests 8-bit
+UYVY/RGBA from the SDK.
+
+The returned float32 Frame uses full scale: legal Y codes 16 and 235 become
+0 and 1, and Cb/Cr code 128 becomes zero. `item.snapshot.info.colour` retains
+the source interpretation, including `resolved["range"] == "legal"` for UYVY.
+Its observations contain only source signalling; resolution-based module
+fallbacks stay absent in `observed`. An `ndi_color_info` metadata element can
+override matrix, primaries and transfer. Resolved matrix, colorspace and gamma
+match the Frame, and `defaults_used` is empty because the module specifies the
+PixelBuffer declarations explicitly. Unrepresentable colour declarations fail
+with a reason.
+
+No audio format is declared until audio arrives. The input uses the core's
+`PcmNormalizer` to produce one common format: 48000 Hz, stereo, interleaved
+`s16le`. It preserves the normalizer's phase across packets, including when a
+mono or different-rate source is converted. Source timestamps establish the
+initial correspondence to video; subsequent PCM positions advance by the
+normalized sample counts. SDK submission jitter and local receipt intervals
+never create gaps or overlaps in a continuous PCM stream. Observed SDK audio
+loss and source format changes begin a new core audio origin. Later missing
+PCM remains pending in the core; the input does not hold pictures for audio
+or generate silence. `audio_synchronized` is true only with usable source
+timestamp correspondence. Without such correspondence, synchronization is
+not claimed. The core output controls bounded waiting and silence for missing
+PCM.
+
+PCM captured before the first picture is retained by the module until that
+picture initializes the core's audio origin. The next receive call submits it
+at its source-derived position before handling a stop request. A returned
+picture's audio reference can remain pending until that submission completes.
+
+NDI's 100 ns video timecode is carried as a core source timecode only when it
+can be represented by a displayed hours/minutes/seconds/frame label at the
+received cadence without loss. NDI provides no drop-frame flag. Other values,
+including timestamps outside a displayed day, have no source timecode.
+The standard SDK supplies decoded pictures without motion vectors or
+residuals; each picture's snapshot reports `side_data_status` as `unavailable`.
+Decoded NDI HX is supported through that SDK path. Compressed NDI HX access
+units require the Advanced SDK and are outside this input.
 
 ## Using the output
 
@@ -164,6 +255,18 @@ becomes one `item`; its kind and payload use standard padded base64. Order,
 duplicate kinds, opaque bytes, and empty payloads are preserved. Empty
 collections produce no metadata. Repeats omit the original ancillary metadata.
 
+The input restores these container items without changing their opaque bytes.
+Other video metadata becomes one item with kind `ndi-metadata`, holding the
+original UTF-8 XML bytes. Declare `ndi-metadata` in an output's accepted kinds
+to forward that payload directly as video metadata. The output does not
+reformat the XML or wrap it in base64. When a picture also has other kinds,
+raw metadata payloads appear first in their original relative order, followed
+by one `pixtreme_ancillary` container for the other items, inside an
+`ndi_metadata_group` root. The input extracts container items and preserves
+the other child elements as `ndi-metadata` without reformatting their bytes.
+`ndi_color_info` describes colour and goes into the Frame's colour record,
+so it is excluded from ancillary data forwarded to an output.
+
 ## Send timing trace
 
 Before `open()`, call the core session's `output.set_trace(trace)` with a
@@ -180,7 +283,7 @@ core's send cadence are unchanged.
 ## C++ integration
 
 The wheel installs its CMake package under `pixtreme/transport/ndi/cmake`.
-Use your organization's shared Conan recipes to obtain the core 0.40.3 and
+Use your organization's shared Conan recipes to obtain the core 0.41.0 and
 pixtreme 2.25.3 prebuilt SDKs and retain their Conan lock. The module's native SDK
 archive is available alongside wheels in the public GitHub Release. Configure with that Conan toolchain, set
 `pixtreme-transport-ndi_DIR` to the module's installed CMake directory, call
@@ -190,6 +293,14 @@ require the core SDK and do not require NDI SDK headers. The C session owns the
 NDI sender; the C++ `Output` is a view of that session. Close the session explicitly
 or release its last owning handle to stop it. Overriding the C++ view's processing
 hooks to replace NDI sending is not supported.
+
+Include `<pixtreme/transport/ndi/input.hpp>` to construct
+`pixtreme::transport::ndi::Input(device, pre_buffer, name, delay_ms)`; the last
+argument defaults to 0. It uses the same owning core session model as `Output`.
+The named module descriptor `ndi` provides both `create_entrance` and
+`create_exit` in shared and source-built static modules. Input options are
+`name` (required) and `delay_ms` (optional); invalid, unknown, repeated, or missing
+options report their key path without exposing option values.
 
 To select the output by name, link only `pixtreme::transport` and include
 `<pixtreme/transport/module.h>`. The core finds the installed NDI wheel without
