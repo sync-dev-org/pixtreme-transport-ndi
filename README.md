@@ -35,11 +35,11 @@ before importing the native binding; pixtreme and the core register their own
 DLL directories. Their DLLs, CUDA runtime, NVIDIA driver and C runtime DLLs stay
 outside this wheel. Use Linux wheels inside WSL2.
 
-The dependency `pixtreme-transport>=0.44.0` installs the transport core, which
+The dependency `pixtreme-transport>=0.45.0` installs the transport core, which
 supplies frame types, buffers, worker threads, audio processing, and pixel
-serialization. This module directly depends on `pixtreme>=2.28.1` and uses
-pixtreme's color definitions to match the primaries and white point of YCbCr
-images to the NDI standard for their resolution. The core's native ABI must
+serialization. This module directly depends on `pixtreme>=2.29.0` and uses
+the core's serialization to convert picture colours to the NDI standard
+for their resolution. The core's native ABI must
 match the ABI used to build this module;
 import rejects an incompatible core before loading the NDI extension. The core
 library stays in its own wheel. This package installs libndi under its own
@@ -198,20 +198,23 @@ Resolution follows each input image, and frame rate follows
 
 RGB images (without a matrix) are serialized as RGBA; images without alpha
 receive opaque alpha. YCbCr images (with a matrix) are serialized as UYVY:
-8-bit 4:2:2, legal range, with byte order Cb0, Y0, Cr0, Y1. The output preserves
-the input matrix, colorspace, and transfer function. Convert incompatible
-images in your pipeline before submitting them.
+8-bit 4:2:2, legal range, with byte order Cb0, Y0, Cr0, Y1. The core converts
+matrix, primaries, and transfer to the output's colour values before packing.
 
-NDI interprets UYVY colour according to the image resolution:
+The output uses NDI's resolution rule for the UYVY matrix and the module's
+shared input/output defaults for primaries:
 
-| Resolution | Required matrix | Required colorspace |
+| Resolution | Output matrix | Output primaries |
 | --- | --- | --- |
 | Width > 1920 or height > 1080 | BT.2020 | Rec.2020 |
 | Otherwise, width > 720 or height > 576 | BT.709 | Rec.709 |
-| Otherwise | BT.601 | Preserved from the input |
+| Otherwise | BT.601 | Rec.709 |
 
-An incompatible YCbCr image stops the output before reaching the SDK. The error
-identifies its matrix, colorspace, resolution, and the required NDI standard.
+UYVY uses Rec.709 transfer and left chroma siting. RGBA uses Rec.709 primaries
+and transfer, full range, and preserves each pixel's alpha when present.
+These explicit defaults also apply to received pictures without colour metadata.
+The output sends no `ndi_color_info`; external receivers may interpret undeclared
+colour differently. Conversion is always allowed and requires no configuration key.
 The core serializes pixels into page-locked host memory, which the output
 passes directly to the SDK. That memory remains valid until serialization and
 SDK reads finish, including during shutdown.
@@ -283,8 +286,8 @@ core's send cadence are unchanged.
 ## C++ integration
 
 The wheel installs its CMake package under `pixtreme/transport/ndi/cmake`.
-Use your organization's shared Conan recipes to obtain the core 0.44.0 and
-pixtreme 2.28.1 prebuilt SDKs and retain their Conan lock. The module's native SDK
+Use your organization's shared Conan recipes to obtain the core 0.45.0 and
+pixtreme 2.29.0 prebuilt SDKs and retain their Conan lock. The module's native SDK
 archive is available alongside wheels in the public GitHub Release. Configure with that Conan toolchain, set
 `pixtreme-transport-ndi_DIR` to the module's installed CMake directory, call
 `find_package(pixtreme-transport-ndi CONFIG REQUIRED)`, and link `pixtreme::ndi`.
