@@ -35,9 +35,9 @@ before importing the native binding; pixtreme and the core register their own
 DLL directories. Their DLLs, CUDA runtime, NVIDIA driver and C runtime DLLs stay
 outside this wheel. Use Linux wheels inside WSL2.
 
-The dependency `pixtreme-transport>=0.48.0` installs the transport core, which
+The dependency `pixtreme-transport>=0.50.0` installs the transport core, which
 supplies frame types, buffers, worker threads, audio processing, and pixel
-serialization. This module directly depends on `pixtreme>=2.30.0` and uses
+serialization. This module directly depends on `pixtreme>=2.31.0` and uses
 the core's serialization to convert picture colours to the NDI standard
 for their resolution. The core's native ABI must
 match the ABI used to build this module;
@@ -286,8 +286,8 @@ core's send cadence are unchanged.
 ## C++ integration
 
 The wheel installs its CMake package under `pixtreme/transport/ndi/cmake`.
-Use your organization's shared Conan recipes to obtain the core 0.48.0 and
-pixtreme 2.30.0 prebuilt SDKs and retain their Conan lock. The module's native SDK
+Use your organization's shared Conan recipes to obtain the core 0.50.0 and
+pixtreme 2.31.0 prebuilt SDKs and retain their Conan lock. The module's native SDK
 archive is available alongside wheels in the public GitHub Release. Configure with that Conan toolchain, set
 `pixtreme-transport-ndi_DIR` to the module's installed CMake directory, call
 `find_package(pixtreme-transport-ndi CONFIG REQUIRED)`, and link `pixtreme::ndi`.
@@ -302,8 +302,8 @@ Include `<pixtreme/transport/ndi/input.hpp>` to construct
 argument defaults to 0. It uses the same owning core session model as `Output`.
 The named module descriptor `ndi` provides both `create_entrance` and
 `create_exit` in shared and source-built static modules. Input options are
-`name` (required) and `delay_ms` (optional); invalid, unknown, repeated, or missing
-options report their key path without exposing option values.
+`source_name` (required) and `receive_delay_ms` (optional); invalid, unknown,
+repeated, or missing options report their key path without exposing option values.
 
 To select the output by name, link only `pixtreme::transport` and include
 `<pixtreme/transport/module.h>`. The core finds the installed NDI wheel without
@@ -325,7 +325,7 @@ auto settings = pt::Handle::adopt(raw_settings);
 const pixtreme_transport_module_exit_request request{
     sizeof(request), 0, post.native_handle(), settings.get()};
 const pixtreme_transport_module_option options[]{
-    {sizeof(pixtreme_transport_module_option), {"name", 4}, {"Processed output", 16}}};
+    {sizeof(pixtreme_transport_module_option), {"source_name", 11}, {"Processed output", 16}}};
 auto output = pt::module::create_exit("ndi", request, options);
 // output owns one unopened core exit reference. Use the core C session API.
 status = pixtreme_transport_exit_open(output.get(), &error);
@@ -337,16 +337,16 @@ The C equivalent is `pixtreme_transport_module_create_exit` from
 `<pixtreme/transport/c/module.h>`. Supply the module name `ndi`, the request,
 and the options array with its count and byte stride. A successful result owns
 one unopened exit reference; close it and release it with the core handle API.
-`name` is the only NDI option and is required exactly once. Its value is the
-source name as UTF-8 bytes without NUL. Unknown, duplicate, missing and invalid
+`source_name` is the only NDI output option and is required exactly once. Its
+value is the source name as UTF-8 bytes without NUL. Unknown, duplicate, missing and invalid
 options report the key path without including the value. Device, buffer and
 core settings belong in the request. Each creation returns an independent
 session and preserves the caller's current CUDA device and context.
 
 The wheel places `libpixtreme_transport_ndi_entry.so` under
-`pixtreme/transport/ndi/lib/`. Discovery returns CPU metadata; creation loads the
-same output library used by Python and reports missing Avahi libraries with
-the system packages to install. NDI reception remains unsupported.
+`pixtreme/transport/ndi/lib/`. Discovery returns CPU metadata; creating the
+output or the input loads the same module library used by Python and reports
+missing Avahi libraries with the system packages to install.
 
 On Windows the entry is `pixtreme/transport/ndi/bin/pixtreme_transport_ndi_entry.dll`.
 The body is `bin/pixtreme_ndi-<core ABI>.dll`, using the ABI of the core SDK
